@@ -440,7 +440,9 @@ void Clay_Win32_Render(HWND hwnd, Clay_RenderCommandArray renderCommands, HFONT*
 
             HPEN oldPen = SelectObject(renderer_hdcMem, topPen);
 
-            if (brd.cornerRadius.topLeft == 0)
+            const int radius = brd.cornerRadius.topLeft;
+
+            if (radius == 0)
             {
                 MoveToEx(renderer_hdcMem, r.left, r.top, NULL);
                 LineTo(renderer_hdcMem, r.right, r.top);
@@ -459,22 +461,50 @@ void Clay_Win32_Render(HWND hwnd, Clay_RenderCommandArray renderCommands, HFONT*
             }
             else
             {
-                // todo: i should be rounded
-                MoveToEx(renderer_hdcMem, r.left, r.top, NULL);
-                LineTo(renderer_hdcMem, r.right, r.top);
+                /*
+                Each corner is rendered with a single color because GDI's Arc()
+                draws with a single pen. This is not ideal for rounded borders
+                with non-uniform side colors, but rendering color changing arcs
+                is significantly more complicated.
+                */
 
-                SelectObject(renderer_hdcMem, leftPen);
-                MoveToEx(renderer_hdcMem, r.left, r.top, NULL);
-                LineTo(renderer_hdcMem, r.left, r.bottom);
+                const int diameter = 2 * radius;
 
-                SelectObject(renderer_hdcMem, bottomPen);
-                MoveToEx(renderer_hdcMem, r.left, r.bottom, NULL);
-                LineTo(renderer_hdcMem, r.right, r.bottom);
+                // Top Edge & Top-Right Corner
+                SelectObject(renderer_hdcMem, topPen);
+                MoveToEx(renderer_hdcMem, r.left + radius, r.top, NULL);
+                LineTo(renderer_hdcMem, r.right - radius, r.top);
+                Arc(renderer_hdcMem,
+                    r.right - diameter, r.top, r.right, r.top + diameter,
+                    r.right, r.top + radius,
+                    r.right - radius, r.top);
 
+                // Right Edge & Bottom-Right Corner
                 SelectObject(renderer_hdcMem, rightPen);
-                MoveToEx(renderer_hdcMem, r.right, r.top, NULL);
-                LineTo(renderer_hdcMem, r.right, r.bottom);
-                
+                MoveToEx(renderer_hdcMem, r.right, r.top + radius, NULL);
+                LineTo(renderer_hdcMem, r.right, r.bottom - radius);
+                Arc(renderer_hdcMem,
+                    r.right - diameter, r.bottom - diameter, r.right, r.bottom,
+                    r.right - radius, r.bottom,
+                    r.right, r.bottom - radius);
+
+                // Bottom Edge & Bottom-Left Corner
+                SelectObject(renderer_hdcMem, bottomPen);
+                MoveToEx(renderer_hdcMem, r.right - radius, r.bottom, NULL);
+                LineTo(renderer_hdcMem, r.left + radius, r.bottom);
+                Arc(renderer_hdcMem,
+                    r.left, r.bottom - diameter, r.left + diameter, r.bottom,
+                    r.left, r.bottom - radius,
+                    r.left + radius, r.bottom);
+
+                // Left Edge & Top-Left Corner
+                SelectObject(renderer_hdcMem, leftPen);
+                MoveToEx(renderer_hdcMem, r.left, r.bottom - radius, NULL);
+                LineTo(renderer_hdcMem, r.left, r.top + radius);
+                Arc(renderer_hdcMem,
+                    r.left, r.top, r.left + diameter, r.top + diameter,
+                    r.left + radius, r.top,
+                    r.left, r.top + radius);
             }
 
             SelectObject(renderer_hdcMem, oldPen);
